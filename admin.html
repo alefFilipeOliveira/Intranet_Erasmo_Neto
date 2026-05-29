@@ -1,0 +1,159 @@
+{% extends "base.html" %}{% block title %}Admin{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <span class="eyebrow">Administração</span>
+    <h1>Painel ADM</h1>
+    <p>Gestão de usuários, setores, funções e estrutura da intranet.</p>
+  </div>
+  {% if tem_permissao('gerar_backup') %}
+  <a class="btn light" href="{{ url_for('backup') }}">Gerar backup completo</a>
+  {% endif %}
+</section>
+
+<section class="stats-grid">
+  <div class="stat"><strong>{{dash.usuarios}}</strong><span>Usuários</span></div>
+  <div class="stat"><strong>{{dash.setores}}</strong><span>Setores</span></div>
+  <div class="stat"><strong>{{dash.pastas}}</strong><span>Pastas</span></div>
+  <div class="stat"><strong>{{dash.conteudos}}</strong><span>Conteúdos</span></div>
+  <div class="stat"><strong>{{dash.obrigatorios}}</strong><span>Obrigatórios</span></div>
+</section>
+
+{% if current_user.perfil == 'admin' or tem_permissao('gerenciar_usuarios') %}
+<section class="admin-grid">
+  <article class="panel admin-card">
+    <div class="panel-head"><h2>Criar usuário</h2></div>
+    <form method="post" action="{{ url_for('criar_usuario') }}" class="stack-form">
+      <input name="nome" placeholder="Nome" required>
+      <input name="usuario" placeholder="Usuário" required>
+      <input name="senha" placeholder="Senha inicial" required>
+      <select name="perfil">
+        <option value="funcionario">Funcionário</option>
+        <option value="admin">Administrador</option>
+      </select>
+      <select name="setor_id">
+        <option value="">Sem setor/Admin</option>
+        {% for s in setores %}<option value="{{s.id}}">{{s.nome}}</option>{% endfor %}
+      </select>
+      <select name="tema">
+        <option value="ocean">Azul Oceano</option>
+        <option value="forest">Verde Claro</option>
+        <option value="clinical">Branco Clínico</option>
+        <option value="dark">Escuro</option>
+      </select>
+      <div class="helper">A troca de senha obrigatória no login foi removida. Senhas agora são controladas pelo ADM.</div>
+      <button class="btn primary">Criar</button>
+    </form>
+  </article>
+
+  <article class="panel admin-card">
+    <div class="panel-head"><h2>Criar setor</h2></div>
+    <form method="post" action="{{ url_for('criar_setor') }}" class="stack-form">
+      <input name="nome" placeholder="Nome" required>
+      <input name="slug" placeholder="slug" required>
+      <input name="descricao" placeholder="Descrição">
+      <textarea name="aviso" rows="4" placeholder="Aviso"></textarea>
+      <button class="btn secondary">Criar setor</button>
+    </form>
+
+    {% if tem_permissao('upload_imagem') %}
+    <h2>Upload de imagem</h2>
+    <form method="post" action="{{ url_for('upload_imagem') }}" enctype="multipart/form-data" class="stack-form">
+      <input type="file" name="imagem" accept="image/*">
+      <button class="btn secondary">Enviar imagem</button>
+    </form>
+    {% endif %}
+  </article>
+</section>
+{% endif %}
+
+<section class="panel">
+  <div class="panel-head"><h2>Usuários</h2></div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Usuário</th>
+          <th>Perfil</th>
+          <th>Setor</th>
+          <th>Último login</th>
+          <th>Status</th>
+          <th>Senha</th>
+          <th>Ação</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for u in usuarios %}
+        <tr>
+          <td>{{u.nome}}</td>
+          <td>{{u.usuario}}</td>
+          <td>{{u.perfil}}</td>
+          <td>{{u.setor_nome or '—'}}</td>
+          <td>{{u.ultimo_login or '—'}}</td>
+          <td>{{'Ativo' if u.ativo else 'Inativo'}}</td>
+          <td>
+            <form method="post" action="{{ url_for('trocar_senha_admin', id=u.id) }}" class="inline-form">
+              <input name="senha" placeholder="Nova senha">
+              <button class="btn soft">Salvar</button>
+            </form>
+          </td>
+          <td>
+            <div class="admin-actions-cell">
+              {% if u.perfil != 'admin' and u.usuario != 'val' %}
+              <button class="btn secondary" data-open-dialog="modalFuncoes{{u.id}}">Funções</button>
+              <form method="post" action="{{ url_for('toggle_usuario', id=u.id) }}">
+                <button class="btn warn">{{'Desativar' if u.ativo else 'Ativar'}}</button>
+              </form>
+              {% else %}
+              <span>Protegido</span>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+
+        {% if u.perfil != 'admin' and u.usuario != 'val' %}
+        <dialog id="modalFuncoes{{u.id}}" class="modal permissoes-modal">
+          <form method="post" action="{{ url_for('atualizar_funcoes_usuario', id=u.id) }}" class="modal-card">
+            <div class="modal-head">
+              <div>
+                <span class="eyebrow">Distribuição de funções</span>
+                <h3>{{u.nome}}</h3>
+              </div>
+              <button type="button" class="icon-btn" data-close-dialog>×</button>
+            </div>
+
+            <p class="muted">Marque abaixo o que este usuário pode fazer dentro da intranet.</p>
+
+            <div class="permissoes-grid">
+              {% set user_perms = permissoes_usuario(u) %}
+              {% for codigo, nome in permissoes_disponiveis.items() %}
+              <label class="permissao-check">
+                <input type="checkbox" name="permissoes" value="{{codigo}}" {% if codigo in user_perms %}checked{% endif %}>
+                <span>{{nome}}</span>
+              </label>
+              {% endfor %}
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" class="btn soft" data-close-dialog>Cancelar</button>
+              <button class="btn primary">Salvar funções</button>
+            </div>
+          </form>
+        </dialog>
+        {% endif %}
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><h2>Logs recentes</h2></div>
+  <div class="log-list">
+    {% for l in logs %}
+    <div><strong>{{l.criado_em}}</strong> — {{l.usuario_nome or 'Sistema'}} — {{l.acao}}</div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

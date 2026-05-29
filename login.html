@@ -1,0 +1,9 @@
+
+{% extends "base.html" %}{% block title %}Login | Portal Erasmo{% endblock %}
+{% block content %}
+<section class="login-card">
+  <div class="login-logo"><img src="{{ url_for('static', filename='img/logo-clinica.png') }}"><div><h1>Portal Erasmo</h1><p>Intranet profissional definitiva</p></div></div>
+  <h2>Acesso obrigatório</h2><p class="muted">Entre com usuário e senha para acessar seu setor.</p>
+  <form method="post" class="stack-form" target="_self" autocomplete="on"><label>Usuário<input name="usuario" required></label><label>Senha<input name="senha" type="password" required></label><button class="btn primary full">Entrar</button></form>
+</section>
+{% endblock %}

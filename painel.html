@@ -1,0 +1,492 @@
+{% extends "base.html" %}
+{% block title %}Painel | Portal Erasmo{% endblock %}
+
+{% block content %}
+<section class="topbar-compact">
+  <div>
+    <span class="eyebrow">Intranet</span>
+    <h1>{{ setor.nome }}</h1>
+    <p>{{ setor.aviso }}</p>
+  </div>
+
+  <div class="topbar-actions">
+    {% if tem_permissao('anexar_documentos') %}
+    <button class="btn secondary" data-open-dialog="modalConteudo">+ Anexo Word</button>
+    {% endif %}
+
+    {% if tem_permissao('criar_pastas') %}
+    <button class="btn soft" data-open-dialog="modalPasta">+ Pasta</button>
+    {% endif %}
+
+    {% if current_user.perfil == 'admin' or tem_permissao('gerenciar_usuarios') %}
+    <a class="btn soft" href="{{ url_for('admin') }}">Admin</a>
+    {% endif %}
+  </div>
+</section>
+
+{% if current_user.perfil == 'admin' %}
+<section class="sector-tabs compact-tabs">
+  {% for s in setores %}
+  <a class="{% if s.id==setor.id %}active{% endif %}" href="{{ url_for('painel', setor_id=s.id) }}">{{s.nome}}</a>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section class="avisos-setor-board">
+  <div class="avisos-head">
+    <div>
+      <h2>Avisos do setor</h2>
+      <p>Comunicados importantes publicados pela administração.</p>
+    </div>
+
+    {% if tem_permissao('criar_avisos') %}
+    <button class="btn secondary" data-open-dialog="modalAvisoSetor">+ Aviso</button>
+    {% endif %}
+  </div>
+
+  <div class="avisos-list">
+    {% for aviso in avisos %}
+    <article class="aviso-card prioridade-{{ aviso.prioridade }}">
+      <div>
+        <span class="aviso-prioridade">{{ aviso.prioridade }}</span>
+        <h3>{{ aviso.titulo }}</h3>
+        <p>{{ aviso.mensagem }}</p>
+        <small>Publicado por {{ aviso.criado_por or 'Admin' }} em {{ aviso.criado_em }}</small>
+      </div>
+
+      {% if tem_permissao('editar_avisos') or tem_permissao('excluir_avisos') %}
+      <div class="aviso-actions">
+        {% if tem_permissao('editar_avisos') %}
+        <button class="mini-btn" data-open-dialog="modalEditarAviso{{ aviso.id }}">Editar</button>
+        {% endif %}
+
+        {% if tem_permissao('excluir_avisos') %}
+        <form method="post" action="{{ url_for('excluir_aviso_setor', id=aviso.id) }}" onsubmit="return confirm('Excluir este aviso?')">
+          <button class="mini-btn danger" type="submit">Excluir</button>
+        </form>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      {% if tem_permissao('editar_avisos') %}
+      <dialog id="modalEditarAviso{{ aviso.id }}" class="modal">
+        <form method="post" action="{{ url_for('editar_aviso_setor', id=aviso.id) }}" class="modal-card">
+          <div class="modal-head">
+            <h3>Editar aviso</h3>
+            <button type="button" class="icon-btn" data-close-dialog>×</button>
+          </div>
+
+          <label>Título
+            <input name="titulo" value="{{ aviso.titulo }}" required>
+          </label>
+
+          <label>Prioridade
+            <select name="prioridade">
+              <option value="normal" {% if aviso.prioridade == 'normal' %}selected{% endif %}>Normal</option>
+              <option value="importante" {% if aviso.prioridade == 'importante' %}selected{% endif %}>Importante</option>
+              <option value="urgente" {% if aviso.prioridade == 'urgente' %}selected{% endif %}>Urgente</option>
+            </select>
+          </label>
+
+          <label>Mensagem
+            <textarea name="mensagem" rows="4" required>{{ aviso.mensagem }}</textarea>
+          </label>
+
+          <div class="modal-actions">
+            <button type="button" class="btn soft" data-close-dialog>Cancelar</button>
+            <button class="btn primary">Salvar aviso</button>
+          </div>
+        </form>
+      </dialog>
+      {% endif %}
+    </article>
+    {% else %}
+    <div class="empty aviso-empty">Nenhum aviso publicado para este setor.</div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="folders-accordion-board">
+  <div class="folders-accordion-head">
+    <div>
+      <h2>Pastas do setor</h2>
+      <p>Clique em uma pasta para abrir ou recolher seus anexos.</p>
+    </div>
+    <div class="folder-helper-pill">Organização por pastas</div>
+  </div>
+
+  <div class="folders-accordion-list">
+    {% for p in pastas %}
+      {% set ns = namespace(total=0) %}
+      {% for c in conteudos %}
+        {% if c.pasta_id == p.id %}
+          {% set ns.total = ns.total + 1 %}
+        {% endif %}
+      {% endfor %}
+
+      <article class="folder-accordion-item {% if pasta_atual and p.id == pasta_atual.id %}open{% endif %}" data-folder-item>
+        <button class="folder-accordion-toggle" type="button" data-folder-toggle>
+          <span class="folder-toggle-left">
+            <span class="folder-icon-modern">📁</span>
+            <span>
+              <strong>{{ p.nome }}</strong>
+              <small>{{ p.descricao or 'Pasta do setor' }}</small>
+            </span>
+          </span>
+
+          <span class="folder-toggle-right">
+            <span class="folder-count-modern">{{ ns.total }}</span>
+            <span class="folder-chevron">⌄</span>
+          </span>
+        </button>
+
+        <div class="folder-accordion-content">
+          <div class="folder-anexos-grid">
+            {% for c in conteudos %}
+              {% if c.pasta_id == p.id %}
+              <article class="anexo-tile prioridade-{{ c.prioridade }}" data-search="{{ c.titulo }} {{ c.descricao }} {{ c.tags }} {{ c.prioridade }}">
+                <a class="anexo-tile-main" href="{{ url_for('abrir_anexo', id=c.id) }}">
+                  <span class="anexo-tile-type">{% if c.tipo == 'html_word' %}WORD{% elif c.tipo == 'html_pdf' %}PDF{% else %}HTML{% endif %}</span>
+                  <strong>{{ c.titulo }}</strong>
+                  <small>{{ c.descricao or 'Sem descrição' }}</small>
+                  <span class="anexo-tile-footer">
+                    {% if c.obrigatorio %}<span class="pill">Obrigatório</span>{% endif %}
+                    <span class="pill">{{ c.prioridade }}</span>
+                    <em>Abrir →</em>
+                  </span>
+                </a>
+
+                {% if tem_permissao('excluir_documentos') %}
+                <form class="anexo-tile-delete" method="post" action="{{ url_for('excluir_anexo_definitivo', id=c.id) }}" onsubmit="return confirm('Excluir este anexo definitivamente? Esta ação não poderá ser desfeita.')">
+                  <button class="mini-btn danger" type="submit">Excluir</button>
+                </form>
+                {% endif %}
+              </article>
+              {% endif %}
+            {% endfor %}
+
+            {% if ns.total == 0 %}
+              <div class="empty folder-empty">Nenhum anexo nesta pasta.</div>
+            {% endif %}
+          </div>
+        </div>
+      </article>
+    {% else %}
+      <div class="empty">Nenhuma pasta criada neste setor.</div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="panel compact-panel search-panel">
+  <div class="panel-head compact-head anexos-head">
+    <div>
+      <h2>Busca rápida</h2>
+      <p>Pesquise anexos dentro das pastas abertas.</p>
+    </div>
+    <div class="anexo-tools">
+      <input id="anexoSearch" class="mini-search" placeholder="Pesquisar anexo...">
+    </div>
+  </div>
+</section>
+
+{% if tem_permissao('editar_pastas') or tem_permissao('excluir_pastas') %}
+<section class="panel compact-panel">
+  <div class="panel-head compact-head">
+    <h2>Gerenciar pastas</h2>
+    <p>Organize os anexos por assunto.</p>
+  </div>
+
+  <div class="category-admin-list">
+    {% for p in pastas %}
+    <div class="category-admin-item">
+      <div>
+        <strong>{{ p.nome }}</strong>
+        <small>{{ p.descricao }}</small>
+      </div>
+
+      <div class="folder-actions">
+        {% if tem_permissao('editar_pastas') %}
+        <button class="mini-btn" data-open-dialog="modalEditarPasta{{p.id}}">Editar</button>
+        {% endif %}
+
+        {% if tem_permissao('excluir_pastas') %}
+        <form method="post" action="{{ url_for('excluir_pasta', id=p.id) }}" onsubmit="return confirm('Excluir esta pasta? Os anexos irão para a lixeira.')">
+          <button class="mini-btn danger">Excluir</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if tem_permissao('editar_pastas') %}
+    <dialog id="modalEditarPasta{{p.id}}" class="modal">
+      <form method="post" action="{{ url_for('editar_pasta', id=p.id) }}" class="modal-card">
+        <div class="modal-head">
+          <h3>Editar pasta</h3>
+          <button type="button" class="icon-btn" data-close-dialog>×</button>
+        </div>
+
+        <label>Nome
+          <input name="nome" value="{{p.nome}}" required>
+        </label>
+
+        <label>Descrição
+          <input name="descricao" value="{{p.descricao}}">
+        </label>
+
+        <div class="modal-actions">
+          <button type="button" class="btn soft" data-close-dialog>Cancelar</button>
+          <button class="btn primary">Salvar</button>
+        </div>
+      </form>
+    </dialog>
+    {% endif %}
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if tem_permissao('anexar_documentos') %}
+<dialog id="modalConteudo" class="modal">
+  <form method="post" action="{{ url_for('criar_conteudo') }}" enctype="multipart/form-data" class="modal-card">
+    <div class="modal-head">
+      <div>
+        <span class="eyebrow">Administração</span>
+        <h3>Novo anexo Word</h3>
+      </div>
+      <button type="button" class="icon-btn" data-close-dialog>×</button>
+    </div>
+
+    <div class="grid-form">
+      <label>Pasta
+        <select name="pasta_id" required>
+          {% for p in pastas %}
+          <option value="{{p.id}}" {% if pasta_atual and p.id == pasta_atual.id %}selected{% endif %}>{{p.nome}}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label>Título
+        <input name="titulo" required>
+      </label>
+
+      <label>Descrição
+        <input name="descricao" placeholder="Explique rapidamente o objetivo do anexo">
+      </label>
+
+      <label>Tags
+        <input name="tags" placeholder="Ex.: onclin, erro, internet">
+      </label>
+
+      <label>Prioridade
+        <select name="prioridade">
+          <option value="normal">Normal</option>
+          <option value="importante">Importante</option>
+          <option value="urgente">Urgente</option>
+        </select>
+      </label>
+
+      <label>Status
+        <select name="status">
+          <option value="publicado">Publicado</option>
+          <option value="rascunho">Rascunho</option>
+        </select>
+      </label>
+
+      <label>Revisar em
+        <input type="date" name="revisar_em">
+      </label>
+
+      <label class="checkline">
+        <input type="checkbox" name="obrigatorio"> Obrigatório
+      </label>
+
+      <label class="full">Documento Word (.docx)
+        <input type="file" name="word" accept=".docx">
+      </label>
+
+      <label class="full">Ou HTML manual
+        <textarea name="html" rows="5" placeholder="<h1>Título</h1><p>Conteúdo...</p>"></textarea>
+      </label>
+    </div>
+
+    <div class="helper">
+      Use título curto, descrição objetiva e escolha a pasta correta.
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn soft" data-close-dialog>Cancelar</button>
+      <button class="btn primary">Salvar anexo</button>
+    </div>
+  </form>
+</dialog>
+{% endif %}
+
+{% if tem_permissao('criar_pastas') %}
+<dialog id="modalPasta" class="modal">
+  <form method="post" action="{{ url_for('criar_pasta') }}" class="modal-card">
+    <div class="modal-head">
+      <div>
+        <span class="eyebrow">Administração</span>
+        <h3>Nova pasta</h3>
+      </div>
+      <button type="button" class="icon-btn" data-close-dialog>×</button>
+    </div>
+
+    <input type="hidden" name="setor_id" value="{{setor.id}}">
+
+    <label>Nome da pasta
+      <input name="nome" required placeholder="Ex.: Onclin, Internet, E-mails, Spark">
+    </label>
+
+    <label>Descrição
+      <input name="descricao" placeholder="Ex.: Guias e orientações do sistema Onclin">
+    </label>
+
+    <div class="modal-actions">
+      <button type="button" class="btn soft" data-close-dialog>Cancelar</button>
+      <button class="btn primary">Criar pasta</button>
+    </div>
+  </form>
+</dialog>
+{% endif %}
+
+{% if tem_permissao('criar_avisos') %}
+<dialog id="modalAvisoSetor" class="modal">
+  <form method="post" action="{{ url_for('criar_aviso_setor') }}" class="modal-card">
+    <div class="modal-head">
+      <div>
+        <span class="eyebrow">Aviso por setor</span>
+        <h3>Novo aviso para {{ setor.nome }}</h3>
+      </div>
+      <button type="button" class="icon-btn" data-close-dialog>×</button>
+    </div>
+
+    <input type="hidden" name="setor_id" value="{{ setor.id }}">
+
+    <label>Título do aviso
+      <input name="titulo" placeholder="Ex.: Atenção ao novo fluxo de atendimento" required>
+    </label>
+
+    <label>Prioridade
+      <select name="prioridade">
+        <option value="normal">Normal</option>
+        <option value="importante">Importante</option>
+        <option value="urgente">Urgente</option>
+      </select>
+    </label>
+
+    <label>Mensagem
+      <textarea name="mensagem" rows="5" placeholder="Digite o comunicado para este setor..." required></textarea>
+    </label>
+
+    <div class="helper">
+      Este aviso aparecerá automaticamente apenas para o setor {{ setor.nome }}.
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn soft" data-close-dialog>Cancelar</button>
+      <button class="btn primary">Publicar aviso</button>
+    </div>
+  </form>
+</dialog>
+{% endif %}
+
+<script>
+(function(){
+  function fecharTodas(exceto){
+    document.querySelectorAll(".folder-accordion-item.open").forEach(function(item){
+      if(item !== exceto){
+        item.classList.remove("open");
+        const content = item.querySelector(".folder-accordion-content");
+        if(content){
+          content.style.maxHeight = "0px";
+        }
+      }
+    });
+  }
+
+  function abrirPasta(item){
+    const content = item.querySelector(".folder-accordion-content");
+    item.classList.add("open");
+    if(content){
+      content.style.maxHeight = content.scrollHeight + "px";
+    }
+  }
+
+  function fecharPasta(item){
+    const content = item.querySelector(".folder-accordion-content");
+    item.classList.remove("open");
+    if(content){
+      content.style.maxHeight = "0px";
+    }
+  }
+
+  document.querySelectorAll("[data-folder-item]").forEach(function(item){
+    const content = item.querySelector(".folder-accordion-content");
+    if(content){
+      if(item.classList.contains("open")){
+        content.style.maxHeight = content.scrollHeight + "px";
+      }else{
+        content.style.maxHeight = "0px";
+      }
+    }
+  });
+
+  document.querySelectorAll("[data-folder-toggle]").forEach(function(btn){
+    btn.addEventListener("click", function(event){
+      event.preventDefault();
+      event.stopPropagation();
+
+      const item = btn.closest("[data-folder-item]");
+      if(!item) return;
+
+      const estavaAberta = item.classList.contains("open");
+      fecharTodas(item);
+
+      if(estavaAberta){
+        fecharPasta(item);
+      }else{
+        abrirPasta(item);
+      }
+    });
+  });
+
+  const anexoSearch = document.getElementById("anexoSearch");
+  if(anexoSearch){
+    anexoSearch.addEventListener("input", function(){
+      const term = anexoSearch.value.toLowerCase().trim();
+
+      document.querySelectorAll(".folder-accordion-item").forEach(function(folder){
+        let encontrou = false;
+
+        folder.querySelectorAll(".anexo-tile").forEach(function(tile){
+          const content = (tile.dataset.search || tile.innerText).toLowerCase();
+          const match = !term || content.includes(term);
+          tile.style.display = match ? "" : "none";
+          if(match && term) encontrou = true;
+        });
+
+        if(term && encontrou){
+          abrirPasta(folder);
+        }
+
+        if(!term){
+          folder.querySelectorAll(".anexo-tile").forEach(function(tile){
+            tile.style.display = "";
+          });
+        }
+      });
+    });
+  }
+
+  window.addEventListener("resize", function(){
+    document.querySelectorAll(".folder-accordion-item.open").forEach(function(item){
+      const content = item.querySelector(".folder-accordion-content");
+      if(content){
+        content.style.maxHeight = content.scrollHeight + "px";
+      }
+    });
+  });
+})();
+</script>
+{% endblock %}

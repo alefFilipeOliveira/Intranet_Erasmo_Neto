@@ -1,0 +1,4 @@
+{% extends "base.html" %}{% block title %}Lixeira{% endblock %}{% block content %}<section class="hero"><div><span class="eyebrow">Administração</span><h1>Lixeira</h1><p>Restaure conteúdos excluídos.</p></div></section><section class="panel"><div class="content-list">{% for c in conteudos %}<article class="content-card"><div class="doc-icon">🗑️</div><h3>{{c.titulo}}</h3><p>{{c.setor_nome}} / {{c.pasta_nome}}</p><div class="lixeira-actions">
+<form method="post" action="{{ url_for('restaurar', id=c.id) }}"><button class="btn primary">Restaurar</button></form>
+<form method="post" action="{{ url_for('excluir_permanente', id=c.id) }}" onsubmit="return confirm('Excluir definitivamente? Esta ação não poderá ser desfeita.')"><button class="btn danger">Excluir definitivo</button></form>
+</div></article>{% else %}<div class="empty">Lixeira vazia.</div>{% endfor %}</div></section>{% endblock %}

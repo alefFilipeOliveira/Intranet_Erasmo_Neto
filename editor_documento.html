@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}Editar {{ conteudo.titulo }}{% endblock %}
+{% block content %}
+<section class="editor-shell">
+  <div class="editor-top">
+    <div>
+      <span class="eyebrow">Editor visual</span>
+      <h1>Editar documento</h1>
+      <p>{{ conteudo.setor_nome }} / {{ conteudo.pasta_nome }}</p>
+    </div>
+    <div class="editor-top-actions">
+      <a class="btn soft" href="{{ url_for('abrir_anexo', id=conteudo.id) }}" target="_blank">Visualizar</a>
+      <a class="btn secondary" href="{{ url_for('painel') }}">Voltar</a>
+    </div>
+  </div>
+
+  <form method="post" id="editorForm" class="editor-form">
+    <label class="editor-title-label">Título do documento
+      <input name="titulo" value="{{ conteudo.titulo }}" required>
+    </label>
+
+    <div class="editor-toolbar">
+      <select data-command="fontName" title="Fonte">
+        <option value="Arial">Arial</option>
+        <option value="Calibri">Calibri</option>
+        <option value="Georgia">Georgia</option>
+        <option value="Times New Roman">Times New Roman</option>
+        <option value="Verdana">Verdana</option>
+        <option value="Courier New">Courier New</option>
+      </select>
+
+      <select data-command="fontSize" title="Tamanho">
+        <option value="2">Pequeno</option>
+        <option value="3" selected>Normal</option>
+        <option value="4">Médio</option>
+        <option value="5">Grande</option>
+        <option value="6">Muito grande</option>
+        <option value="7">Título</option>
+      </select>
+
+      <select id="formatBlock" title="Formato">
+        <option value="p">Parágrafo</option>
+        <option value="h1">Título 1</option>
+        <option value="h2">Título 2</option>
+        <option value="h3">Título 3</option>
+        <option value="blockquote">Citação</option>
+      </select>
+
+      <button type="button" data-command="bold"><b>B</b></button>
+      <button type="button" data-command="italic"><i>I</i></button>
+      <button type="button" data-command="underline"><u>U</u></button>
+      <button type="button" data-command="strikeThrough"><s>S</s></button>
+
+      <label class="color-tool">Texto <input type="color" id="foreColor" value="#000000"></label>
+      <label class="color-tool">Fundo <input type="color" id="backColor" value="#ffffff"></label>
+
+      <button type="button" data-command="justifyLeft">⬅</button>
+      <button type="button" data-command="justifyCenter">↔</button>
+      <button type="button" data-command="justifyRight">➡</button>
+      <button type="button" data-command="justifyFull">☰</button>
+
+      <button type="button" data-command="insertUnorderedList">Lista</button>
+      <button type="button" data-command="insertOrderedList">1. Lista</button>
+      <button type="button" data-command="outdent">- Recuo</button>
+      <button type="button" data-command="indent">+ Recuo</button>
+
+      <button type="button" id="insertLink">Link</button>
+      <button type="button" id="insertImage">Imagem</button>
+      <button type="button" id="insertCallout">Aviso</button>
+      <button type="button" id="clearFormat">Limpar</button>
+      <button type="button" data-command="undo">Desfazer</button>
+      <button type="button" data-command="redo">Refazer</button>
+    </div>
+
+    <div class="editor-paper-wrap">
+      <article id="visualEditor" class="visual-editor document-paper" contenteditable="true">
+        {{ conteudo.html|safe }}
+      </article>
+    </div>
+
+    <textarea name="html" id="htmlField" hidden></textarea>
+
+    <div class="editor-savebar">
+      <span>As alterações são salvas no banco e a versão anterior fica no histórico.</span>
+      <button type="submit" class="btn primary">Salvar alterações</button>
+    </div>
+  </form>
+</section>
+
+<script>
+const editor = document.getElementById("visualEditor");
+const htmlField = document.getElementById("htmlField");
+const form = document.getElementById("editorForm");
+
+function runCommand(command, value = null) {
+  editor.focus();
+  document.execCommand(command, false, value);
+}
+
+document.querySelectorAll("[data-command]").forEach(el => {
+  el.addEventListener("click", () => {
+    const command = el.dataset.command;
+    const value = el.value || null;
+    runCommand(command, value);
+  });
+
+  el.addEventListener("change", () => {
+    const command = el.dataset.command;
+    const value = el.value;
+    runCommand(command, value);
+  });
+});
+
+document.getElementById("formatBlock").addEventListener("change", e => {
+  runCommand("formatBlock", e.target.value);
+});
+
+document.getElementById("foreColor").addEventListener("input", e => {
+  runCommand("foreColor", e.target.value);
+});
+
+document.getElementById("backColor").addEventListener("input", e => {
+  runCommand("hiliteColor", e.target.value);
+});
+
+document.getElementById("insertLink").addEventListener("click", () => {
+  const url = prompt("Digite o link:");
+  if (url) runCommand("createLink", url);
+});
+
+document.getElementById("insertImage").addEventListener("click", () => {
+  const url = prompt("Cole o caminho da imagem. Ex.: /uploads/imagens/imagem.png");
+  if (url) runCommand("insertImage", url);
+});
+
+document.getElementById("insertCallout").addEventListener("click", () => {
+  editor.focus();
+  document.execCommand("insertHTML", false, `
+    <div class="callout">
+      <strong>Atenção:</strong>
+      <p>Digite o aviso aqui.</p>
+    </div>
+  `);
+});
+
+document.getElementById("clearFormat").addEventListener("click", () => {
+  runCommand("removeFormat");
+});
+
+form.addEventListener("submit", () => {
+  htmlField.value = editor.innerHTML;
+});
+</script>
+{% endblock %}

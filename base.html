@@ -1,0 +1,110 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>{% block title %}Portal Erasmo{% endblock %}</title>
+<link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.cen.png') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="theme-{{ current_user.tema if current_user else 'ocean' }}">
+<div class="ambient">
+  <div class="ocean bubbles"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="ocean fish f1">🐟</div><div class="ocean fish f2">🐠</div><div class="ocean fish f3">🐡</div><div class="ocean fish f4">🐟</div><div class="ocean fish f5">🐠</div>
+  <div class="forest leaf l1">🍃</div><div class="forest leaf l2">🌿</div><div class="forest leaf l3">🍂</div><div class="forest leaf l4">🍃</div><div class="forest leaf l5">🌿</div><div class="forest leaf l6">🍂</div>
+</div>
+{% if current_user %}
+<aside class="sidebar">
+  <div class="brand"><img src="{{ url_for('static', filename='img/logo-clinica.png') }}"><div><strong>Portal Erasmo</strong><span>Intranet Suprema</span></div></div>
+  <div class="user-card"><small>{{ current_user.perfil }}</small><strong>{{ current_user.nome }}</strong><span>{{ current_user.setor_nome or 'Admin geral' }}</span></div>
+  <nav>
+    <a href="{{ url_for('painel') }}">🏠 Painel</a>
+    {% if current_user.perfil == 'admin' or tem_permissao('gerenciar_usuarios') %}
+    <a href="{{ url_for('admin') }}">🛡️ Admin</a>
+    {% endif %}
+    {% if tem_permissao('ver_lixeira') %}
+    <a href="{{ url_for('lixeira') }}">🗑️ Lixeira</a>
+    {% endif %}
+    {% if tem_permissao('ver_logs') %}
+    <a href="{{ url_for('logs') }}">📋 Logs</a>
+    {% endif %}
+    {% if tem_permissao('gerar_backup') %}
+    <a href="{{ url_for('backup') }}">💾 Backup</a>
+    {% endif %}
+  </nav>
+
+  <div class="sidebar-bottom">
+    <button class="settings-gear" data-open-dialog="modalConfiguracoes" title="Configurações">
+      <span>⚙️</span>
+      <strong>Configurações</strong>
+    </button>
+  </div>
+
+  <dialog id="modalConfiguracoes" class="modal settings-modal">
+    <section class="modal-card">
+      <div class="modal-head">
+        <div>
+          <span class="eyebrow">Preferências</span>
+          <h3>Configurações da intranet</h3>
+        </div>
+        <button type="button" class="icon-btn" data-close-dialog>×</button>
+      </div>
+
+      <div class="settings-grid">
+        <div class="settings-user">
+          <strong>{{ current_user.nome }}</strong>
+          <span>{{ current_user.perfil }}{% if current_user.setor_nome %} · {{ current_user.setor_nome }}{% endif %}</span>
+        </div>
+
+        <div class="settings-section">
+          <h4>Tema visual</h4>
+          <p>Escolha a aparência da intranet.</p>
+
+          <div class="theme-options">
+            {% for t,n,ico in [('ocean','Azul Oceano','🌊'),('forest','Verde Claro','🍃'),('clinical','Branco Clínico','🏥'),('dark','Escuro','🌙')] %}
+            <form method="post" action="{{ url_for('tema', tema=t) }}">
+              <button class="theme-option {% if current_user.tema == t %}active{% endif %}">
+                <span>{{ ico }}</span>
+                <strong>{{ n }}</strong>
+              </button>
+            </form>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="settings-section danger-zone">
+          <h4>Sessão</h4>
+          <p>Encerrar acesso atual ao sistema.</p>
+          <a class="btn danger" href="{{ url_for('logout') }}">Sair da intranet</a>
+        </div>
+      </div>
+    </section>
+  </dialog>
+
+</aside>
+{% endif %}
+<main class="{% if current_user %}main{% else %}login-main{% endif %}">
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}<div class="toasts">{% for cat,msg in messages %}<div class="toast {{cat}}">{{msg}}</div>{% endfor %}</div>{% endif %}
+{% endwith %}
+{% block content %}{% endblock %}
+</main>
+
+<script>
+document.addEventListener("click", function(e){
+  const open = e.target.closest("[data-open-dialog]");
+  if(open){
+    const modal = document.getElementById(open.dataset.openDialog);
+    if(modal) modal.showModal();
+  }
+
+  const close = e.target.closest("[data-close-dialog]");
+  if(close){
+    const modal = close.closest("dialog");
+    if(modal) modal.close();
+  }
+});
+</script>
+
+</body>
+</html>

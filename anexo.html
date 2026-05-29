@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>{{ conteudo.titulo }}</title>
+<link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.cen.png') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="anexo-body">
+<header class="anexo-header">
+  <a class="anexo-back-btn" href="{{ url_for('painel', setor_id=conteudo.setor_id) }}">← Voltar</a>
+  <a class="anexo-brand" href="{{ url_for('painel', setor_id=conteudo.setor_id) }}" title="Voltar ao painel do setor">
+    <img src="{{ url_for('static', filename='img/logo-clinica.png') }}" alt="Logo">
+    <span>{{ conteudo.titulo }}</span>
+  </a>
+  <div class="anexo-actions">
+    {% if tem_permissao('excluir_documentos') %}
+    <form method="post" action="{{ url_for('excluir_anexo_definitivo', id=conteudo.id) }}" onsubmit="return confirm('Excluir este anexo definitivamente? Esta ação não poderá ser desfeita.')">
+      <button class="btn danger" type="submit">Excluir anexo</button>
+    </form>
+    {% endif %}
+    {% if tem_permissao('editar_documentos') %}<a href="{{ url_for('editor_visual_conteudo', id=conteudo.id) }}" class="btn primary">Editar documento</a>{% endif %}
+    {% if conteudo.arquivo_path and conteudo.tipo == 'html_word' %}
+    <a href="{{ url_for('word_original', filename=conteudo.arquivo_path) }}" class="btn soft">Word original</a>
+    {% endif %}
+  </div>
+</header>
+
+<main class="anexo-page">
+  <section class="document-paper">
+    {{ conteudo.html|safe }}
+  </section>
+</main>
+</body>
+</html>
